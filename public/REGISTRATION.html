@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kitchen Dashboard</title>
+  <style>
+    body { font-family: sans-serif; background: #eef2f5; padding: 20px; }
+    h2 { text-align: center; }
+    .buzzer-control {
+      background: rgba(255, 255, 255, 0.974);
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 10px;
+      max-width: 400px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #connectBtn { background-color: #007BFF; color: white; }
+    .onBtn { background-color: #28a745; color: white; }
+    .offBtn { background-color: #dc3545; color: white; }
+    .status { margin-top: 10px; font-weight: bold; }
+    input, select {
+      padding: 10px;
+      width: 90%;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .info-panel {
+      background: #fff;
+      max-width: 400px;
+      margin: 30px auto 24px auto;
+      padding: 24px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: left;
+    }
+    .info-panel h2 {
+      color: #0078d7;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .info-panel div {
+      margin-bottom: 12px;
+    }
+    .info-panel span {
+      color: #888;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-bottom: 16px;">
+    <div class="info-panel" style="margin-bottom:0;">
+      <h2>Today's Info</h2>
+      <div>
+        <span>Day:</span>
+        <span id="infoDay" style="font-weight:bold;"></span>
+      </div>
+      <div>
+        <span>Date:</span>
+        <span id="infoDate" style="font-weight:bold;"></span>
+      </div>
+      <div>
+        <span>Open Hour:</span>
+        <input id="openHour" type="time" value="08:00">
+      </div>
+      <div>
+        <span>Close Hour:</span>
+        <input id="closeHour" type="time" value="22:00">
+      </div>
+    </div>
+
+    <div class="buzzer-control" style="margin-bottom:0;">
+      <h2>CUSTOMER ORDER REGISTRATION</h2>
+      <div style="margin-bottom:10px; display: flex; gap: 10px; align-items: center; justify-content: center;">
+        <select id="deviceDropdown" onchange="fillDeviceName()" style="flex: 1;">
+          <option value="">Select Alert</option>
+          <option value="ESP32-01">ESP32-01</option>
+          <option value="ESP32-02">ESP32-02</option>
+        </select>
+        <input id="deviceName" placeholder="Enter alert Name (e.g., ESP32-BUZZ01)" style="flex: 2;">
+      </div>
+      <select id="foodName" onchange="autoFillPrice()">
+        <option value="">Select Food</option>
+        <option value="pizza">Pizza</option>
+        <option value="burger">Burger</option>
+        <option value="noodles">Noodles</option>
+        <option value="chicken wing">Chicken wing</option>
+        <option value="fried rice">fried rice</option>
+        <option value="french fries">French fries</option>
+        <option value="burrito">Burrito</option>
+      </select>
+      <input id="price" placeholder="Price" readonly style="background: #f5f5f5; cursor: not-allowed;">
+      
+      <button id="connectBtn" onclick="connectBluetooth()">Connect</button>
+      <button id="submitBtn" onclick="submitData()" disabled>Submit to Server</button>
+      <button class="onBtn" onclick="activateBuzzer()">Activate Buzzer</button>
+
+      <div class="status" id="status">Status: Not Connected</div>
+    </div>
+  </div>
+
+  <script>
+    // Set day and date for info panel
+    const now = new Date();
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    document.getElementById('infoDay').textContent = days[now.getDay()];
+    document.getElementById('infoDate').textContent = now.toLocaleDateString();
+
+    let bleServer;
+    let bleCharacteristic;
+    let connectedDeviceName = "";
+
+    async function connectBluetooth() {
+      const deviceName = document.getElementById("deviceName").value.trim();
+      if (!deviceName) {
+        alert("Please enter the ESP32 Bluetooth name.");
+        return;
+      }
+
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: deviceName }],
+          optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+        bleCharacteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+
+        bleServer = server;
+        connectedDeviceName = deviceName;
+        document.getElementById("status").textContent = "✅ Connected to " + deviceName;
+        document.getElementById("submitBtn").disabled = false;
+      } catch (error) {
+        document.getElementById("status").textContent = "❌ Connection failed. Make sure ESP32 is advertising.";
+        alert("Bluetooth connection failed: " + error);
+      }
+    }
+
+    async function activateBuzzer() {
+      if (!bleCharacteristic) {
+        alert("❌ Not connected to any device.");
+        return;
+      }
+
+      try {
+        await bleCharacteristic.writeValue(Uint8Array.of(0));
+        document.getElementById("status").textContent = "✅ Buzzer Activated";
+
+        setTimeout(async () => {
+          if (bleCharacteristic) {
+            await bleCharacteristic.writeValue(Uint8Array.of(1));
+            document.getElementById("status").textContent = "🔕 Buzzer Deactivated (after 3 SEC)";
+          }
+        }, 3000);
+      } catch (err) {
+        alert("Error activating buzzer: " + err);
+      }
+    }
+
+    async function submitData() {
+      const foodName = document.getElementById("foodName").value;
+      const price = document.getElementById("price").value;
+
+      if (!connectedDeviceName || !foodName || !price) {
+        alert("Please complete all fields.");
+        return;
+      }
+
+      const data = {
+        espName: connectedDeviceName,
+        foodName,
+        price
+      };
+
+      try {
+        const res = await fetch('/register-food', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          alert("✅ Food registered successfully!");
+          document.getElementById("foodName").value = "";
+          document.getElementById("price").value = "";
+
+            const orderData = {
+    customerName: "", // Optional – add input later if needed
+    buzzerId: connectedDeviceName,
+    items: [{
+      foodName,
+      price: parseFloat(price)
+    }]
+  };
+
+  await fetch('/order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orderData)
+  });
+
+        } else {
+          const errMsg = await res.json();
+          alert("❌ " + errMsg.message); // Show specific error from backend
+          alert("❌ Server error. Try again.");
+        }
+      } catch (err) {
+        alert("❌ Failed to submit data: " + err);
+      }
+    }
+
+    function fillDeviceName() {
+      const dropdown = document.getElementById('deviceDropdown');
+      const deviceNameInput = document.getElementById('deviceName');
+      if (dropdown.value) {
+        deviceNameInput.value = dropdown.value;
+      } else {
+        deviceNameInput.value = '';
+      }
+    }
+
+    function autoFillPrice() {
+      const foodPrices = {
+        pizza: 25000,
+        burger: 30000,
+        noodles: 36000,
+        "chicken wing": 5000,
+        "fried rice": 15000,
+        "french fries": 17000,
+        burrito: 30000
+      };
+      const food = document.getElementById('foodName').value;
+      document.getElementById('price').value = foodPrices[food] || '';
+    }
+  </script>
+</body>
+</html>

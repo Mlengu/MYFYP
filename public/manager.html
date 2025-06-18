@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manager Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
+    .panel {
+      background: #fff;
+      max-width: 400px;
+      margin: 60px auto 24px auto;
+      padding: 32px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: left;
+    }
+    .panel h1 { margin-bottom: 24px; color: #0078d7; text-align: left; }
+    .panel h2 { margin-bottom: 24px; color: #0078d7; text-align: left; font-size: 1.2em; }
+    .panel .info { margin: 12px 0; font-size: 1.1em; }
+    .panel .label { color: #888; margin-right: 8px; }
+    .panel .value { font-weight: bold; }
+    .pizza-panel, .other-panel {
+      background: #fff;
+      max-width: 400px;
+      margin: 0 auto 24px auto;
+      padding: 32px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: left;
+    }
+    .pizza-panel h3 { margin-bottom: 18px; color: #d77a00; }
+    .other-panel h3 { margin-bottom: 18px; color: #0078d7; }
+    /* Add flexbox for horizontal alignment */
+    .food-panels-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .panels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      justify-content: center;
+      margin: 24px auto;
+      max-width: 900px;
+    }
+    .panel, .pizza-panel, .other-panel {
+      background: #fff;
+      max-width: 400px;
+      padding: 32px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      text-align: left;
+      margin: 0 auto;
+    }
+    .panel h1 { margin-bottom: 24px; color: #0078d7; text-align: left; }
+    .panel h2 { margin-bottom: 24px; color: #0078d7; text-align: left; font-size: 1.2em; }
+    .panel .info { margin: 12px 0; font-size: 1.1em; }
+    .panel .label { color: #888; margin-right: 8px; }
+    .panel .value { font-weight: bold; }
+    .pizza-panel h3 { margin-bottom: 18px; color: #d77a00; }
+    .other-panel h3 { margin-bottom: 18px; color: #0078d7; }
+  </style>
+</head>
+<body>
+  <div style="background:#fff; max-width:400px; margin:60px auto 24px auto; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.08); text-align:center;">
+    <h1 style="color:#0078d7; margin-bottom:24px;">Manager Dashboard</h1>
+  </div>
+
+  <div class="panels-grid">
+    <div class="panel">
+      <h2 style="text-align:center; color:#0078d7;">Overall Review</h2>
+      <div class="info"><span class="label">Day:</span> <span class="value" id="day"></span></div>
+      <div class="info"><span class="label">Date:</span> <span class="value" id="date"></span></div>
+      <div class="info"><span class="label">Open Hour:</span> <span class="value" id="openHour">08:00</span></div>
+      <div class="info"><span class="label">Close Hour:</span> <span class="value" id="closeHour">22:00</span></div>
+      <div class="info"><span class="label">Total Orders:</span> <span class="value" id="overallOrders">-</span></div>
+      <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="overallCompleted">-</span></div>
+      <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="overallCanceled">-</span></div>
+      <div class="info"><span class="label">Total Income:</span> <span class="value" id="overallIncome">-</span></div>
+      <button class="btn-more" onclick="toggleMorePanels()">More</button>
+    </div>
+
+    <div class="panel">
+      <h2 style="text-align:center; color:#0078d7;">Monthly Overview</h2>
+      <div class="info">
+        <span class="label">Month:</span>
+        <select id="monthSelect" onchange="fillStats()">
+          <!-- Options will be filled by JS -->
+        </select>
+      </div>
+      <div class="info"><span class="label">Total Orders:</span> <span class="value" id="monthlyOrders">-</span></div>
+      <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="monthlyCompleted">-</span></div>
+      <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="monthlyCanceled">-</span></div>
+      <div class="info"><span class="label">Total Income:</span> <span class="value" id="monthlyIncome">-</span></div>
+    </div>
+
+    <div id="morePanels" style="display:none; grid-column: 1 / span 2;">
+      <div class="pizza-panel">
+        <h3>Pizza Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="pizzaOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="pizzaCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="pizzaCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="pizzaIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="pizzaRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>Burger Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="burgerOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="burgerCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="burgerCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="burgerIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="burgerRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>Noodles Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="noodlesOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="noodlesCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="noodlesCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="noodlesIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="noodlesRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>Chicken Wing Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="chickenwingOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="chickenwingCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="chickenwingCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="chickenwingIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="chickenwingRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>Fried Rice Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="friedriceOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="friedriceCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="friedriceCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="friedriceIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="friedriceRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>French Fries Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="frenchfriesOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="frenchfriesCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="frenchfriesCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="frenchfriesIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="frenchfriesRank">-</span></div>
+      </div>
+
+      <div class="other-panel">
+        <h3>Burrito Daily Status</h3>
+        <div class="info"><span class="label">Number of Orders:</span> <span class="value" id="burritoOrders">-</span></div>
+        <div class="info"><span class="label">Completed Orders:</span> <span class="value" id="burritoCompleted">-</span></div>
+        <div class="info"><span class="label">Canceled Orders:</span> <span class="value" id="burritoCanceled">-</span></div>
+        <div class="info"><span class="label">Total Income:</span> <span class="value" id="burritoIncome">-</span></div>
+        <div class="info"><span class="label">Rank (% of all orders):</span> <span class="value" id="burritoRank">-</span></div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .btn-more {
+      display: block;
+      margin: 24px auto 0 auto;
+      padding: 10px 24px;
+      background: #0078d7;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-more:hover {
+      background: #005fa3;
+    }
+    #morePanels {
+      margin-top: 24px;
+      display: none;
+      grid-column: 1 / span 2;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    #morePanels > div {
+      margin-bottom: 0;
+    }
+  </style>
+
+  <script>
+    function toggleMorePanels() {
+      const more = document.getElementById('morePanels');
+      more.style.display = (more.style.display === 'none' || more.style.display === '') ? 'grid' : 'none';
+    }
+
+    // Set day and date
+    const now = new Date();
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    document.getElementById('day').textContent = days[now.getDay()];
+    document.getElementById('date').textContent = now.toLocaleDateString();
+
+    // Month names
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
+
+    // Fill month select options (last 12 months)
+    function fillMonthSelect() {
+      const select = document.getElementById('monthSelect');
+      select.innerHTML = '';
+      const current = new Date();
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(current.getFullYear(), current.getMonth() - i, 1);
+        const value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+        const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        if (i === 0) option.selected = true;
+        select.appendChild(option);
+      }
+    }
+
+    // List of food types and their panel IDs
+    const foodTypes = [
+      { name: "Pizza", id: "pizza" },
+      { name: "Burger", id: "burger" },
+      { name: "Noodles", id: "noodles" },
+      { name: "Chicken Wing", id: "chickenwing" },
+      { name: "Fried Rice", id: "friedrice" },
+      { name: "French Fries", id: "frenchfries" },
+      { name: "Burrito", id: "burrito" }
+    ];
+
+    // Fetch and fill overall, monthly, and daily food stats
+    async function fillStats() {
+      // Fetch all orders
+      const orders = await fetch('/orders').then(r => r.json());
+
+      // Overall stats
+      document.getElementById('overallOrders').textContent = orders.length;
+      document.getElementById('overallCompleted').textContent = orders.filter(o => o.status === 'completed').length;
+      document.getElementById('overallCanceled').textContent = orders.filter(o => o.status === 'canceled').length;
+      document.getElementById('overallIncome').textContent = orders
+        .filter(o => o.status === 'completed')
+        .reduce((sum, o) => sum + (o.items?.reduce((s, i) => s + (i.price || 0), 0) || 0), 0);
+
+      // Monthly stats
+      const select = document.getElementById('monthSelect');
+      const [year, month] = select.value.split('-').map(Number);
+      const monthlyOrders = orders.filter(o => {
+        const d = new Date(o.createdAt);
+        return d.getFullYear() === year && (d.getMonth() + 1) === month;
+      });
+      document.getElementById('monthlyOrders').textContent = monthlyOrders.length;
+      document.getElementById('monthlyCompleted').textContent = monthlyOrders.filter(o => o.status === 'completed').length;
+      document.getElementById('monthlyCanceled').textContent = monthlyOrders.filter(o => o.status === 'canceled').length;
+      document.getElementById('monthlyIncome').textContent = monthlyOrders
+        .filter(o => o.status === 'completed')
+        .reduce((sum, o) => sum + (o.items?.reduce((s, i) => s + (i.price || 0), 0) || 0), 0);
+
+      // Daily food stats (for today)
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      foodTypes.forEach(food => {
+        // All orders for this food today
+        const foodOrders = orders.filter(o =>
+          o.items.some(i => i.foodName && i.foodName.toLowerCase() === food.name.toLowerCase()) &&
+          new Date(o.createdAt) >= today && new Date(o.createdAt) < tomorrow
+        );
+        // Completed orders for this food today
+        const foodCompleted = foodOrders.filter(o => o.status === 'completed');
+        // Canceled orders for this food today
+        const foodCanceled = foodOrders.filter(o => o.status === 'canceled');
+        // Total income for this food today
+        const foodIncome = foodCompleted.reduce((sum, o) =>
+          sum + (o.items
+            .filter(i => i.foodName && i.foodName.toLowerCase() === food.name.toLowerCase())
+            .reduce((s, i) => s + (i.price || 0), 0)
+          ), 0
+        );
+        // Rank: percentage of all today's orders
+        const allTodayOrders = orders.filter(o => new Date(o.createdAt) >= today && new Date(o.createdAt) < tomorrow);
+        const rank = allTodayOrders.length > 0 ? Math.round((foodOrders.length / allTodayOrders.length) * 100) : 0;
+
+        document.getElementById(`${food.id}Orders`).textContent = foodOrders.length;
+        document.getElementById(`${food.id}Completed`).textContent = foodCompleted.length;
+        document.getElementById(`${food.id}Canceled`).textContent = foodCanceled.length;
+        document.getElementById(`${food.id}Income`).textContent = foodIncome;
+        document.getElementById(`${food.id}Rank`).textContent = rank + "%";
+      });
+    }
+
+    fillMonthSelect();
+    fillStats();
+  </script>
+</body>
+</html>

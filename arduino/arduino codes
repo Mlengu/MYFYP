@@ -1,0 +1,20 @@
+#include <BluetoothSerial.h>
+BluetoothSerial SerialBT;
+int buzzerPin = 14;
+
+void setup() {
+  Serial.begin(115200);
+  SerialBT.begin("ESP32-Buzzer");
+  pinMode(buzzerPin, OUTPUT);
+}
+
+void loop() {
+  if (SerialBT.available()) {
+    String command = SerialBT.readStringUntil('\n');
+    if (command == "BUZZ") {
+      digitalWrite(buzzerPin, HIGH);
+      delay(1000);
+      digitalWrite(buzzerPin, LOW);
+    }
+  }
+}

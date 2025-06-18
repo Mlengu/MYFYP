@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kitchen Dashboard</title>
+  <div style="text-align:center; margin-bottom: 20px;">
+    <label for="statusFilter">Filter by Status:</label>
+    <select id="statusFilter" onchange="fetchOrders()">
+      <option value="">All</option>
+      <option value="Pending">Pending</option>
+      <option value="Ready">Ready</option>
+      <option value="Served">Served</option>
+    </select>
+  </div>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #eef2f5;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    table {
+      width: 90%;
+      margin: auto;
+      border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 15px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+    }
+
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 2px;
+    }
+
+    #ordersTable {
+  width: 90%;
+  margin: 40px auto;
+  border-collapse: collapse;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#ordersTable th, #ordersTable td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+#ordersTable th {
+  background-color: #28a745;
+  color: white;
+}
+
+
+    .connect { background-color: #007BFF; color: white; }
+    .activate { background-color: #28a745; color: white; }
+    .disconnect { background-color: #dc3545; color: white; }
+    .status { font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>NEW ORDER</h2>
+  <table id="deviceTable">
+    <thead>
+      <tr>
+        <th>ESP32 Name</th>
+        <th>Food Name</th>
+        <th>Price (TSH)</th>
+        <th>Is Complete?</th>
+        <th>Disconnect</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Devices will be inserted here -->
+    </tbody>
+  </table>
+
+  <!-- Add Complete Table -->
+<h2 style="margin-top: 30px;">Completed Orders</h2>
+<table id="completeTable">
+  <thead>
+    <tr>
+      <th>ESP32 Name</th>
+      <th>Food Name</th>
+      <th>Price (TSH)</th>
+      <th>Ordered Time</th>
+      <th>Saved Time</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Completed devices will be inserted here -->
+  </tbody>
+</table>
+
+  <script>
+  let deviceMap = {};
+
+  async function fetchDevices() {
+    const res = await fetch('/get-devices');
+    const devices = await res.json();
+
+    const orders = await fetch('/orders').then(r => r.json());
+    console.log(orders);
+
+    const tbody = document.querySelector("#deviceTable tbody");
+    tbody.innerHTML = "";
+
+    devices.forEach(device => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td>${device.espName}</td>
+        <td>${device.foodName}</td>
+        <td>${device.price}</td>
+        <td><button class="btn complete" onclick="completeAction('${device.espName}', this)">Complete</button></td>
+        <td><button class="btn disconnect" onclick="disconnect('${device.espName}', this)" disabled>Disconnect</button></td>
+        <td class="status">Not Connected</td>
+      `;
+
+      tbody.appendChild(row);
+    });
+  }
+
+  async function completeAction(espName, button) {
+    const row = button.closest("tr");
+    const statusCell = row.querySelector(".status");
+    const disconnectBtn = row.querySelector(".disconnect");
+
+    // Check if all attributes are empty/null
+    const cells = row.querySelectorAll("td");
+    let hasAttributes = false;
+    // Check only the first three columns (ESP32 Name, Food Name, Price)
+    for (let i = 0; i < 3; i++) {
+      if (cells[i].textContent && cells[i].textContent.trim() !== "") {
+        hasAttributes = true;
+        break;
+      }
+    }
+
+    if (!hasAttributes) {
+      // If no attributes, do not move the row
+      alert("This row has no attributes left and will not be moved.");
+      return;
+    }
+
+    try {
+      // Connect
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ name: espName }],
+        optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+      });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+      const characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+
+      deviceMap[espName] = { device, server, characteristic };
+
+      // Activate
+      await characteristic.writeValue(Uint8Array.of(0)); // ON
+      statusCell.textContent = "✅ Buzzer Activated";
+
+      disconnectBtn.disabled = false;
+
+      setTimeout(async () => {
+        await characteristic.writeValue(Uint8Array.of(1)); // OFF
+        statusCell.textContent = "🔕 Buzzer Deactivated (after 1 min)";
+      }, 60000);
+
+      // Move row to completeTable
+      moveRowToCompleteTable(row);
+
+    } catch (err) {
+      alert("❌ Complete action failed: " + err);
+    }
+  }
+
+  function moveRowToCompleteTable(row) {
+    // Remove the "Is Complete?" and "Disconnect" columns for the completed table
+    const cells = row.querySelectorAll("td");
+    // Assuming orderTime and savedTime are stored as data attributes on the row or cells
+    // If not, replace with actual values or add them as needed
+    const orderedTime = row.getAttribute('data-ordered-time') || '';
+    const savedTime = row.getAttribute('data-saved-time') || '';
+    const newRow = document.createElement("tr");
+    newRow.innerHTML = `
+      <td>${cells[0].textContent}</td>
+      <td>${cells[1].textContent}</td>
+      <td>${cells[2].textContent}</td>
+      <td>${orderedTime}</td>
+      <td>${savedTime}</td>
+      <td>${cells[5].textContent}</td>
+    `;
+    document.querySelector("#completeTable tbody").appendChild(newRow);
+    row.remove();
+  }
+
+  async function disconnect(espName, button) {
+    const row = button.closest("tr");
+    const statusCell = row.querySelector(".status");
+    const disconnectBtn = row.querySelector(".disconnect");
+
+    const conn = deviceMap[espName];
+    if (!conn || !conn.device.gatt.connected) {
+      alert("Already disconnected.");
+      return;
+    }
+
+    try {
+      await conn.device.gatt.disconnect();
+      statusCell.textContent = "🔌 Disconnected";
+      disconnectBtn.disabled = true;
+      delete deviceMap[espName];
+    } catch (err) {
+      alert("❌ Error during disconnection: " + err);
+    }
+  }
+
+  // Add this function for activating the buzzer
+  async function activateBuzzer(espName, button) {
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ name: espName }],
+        optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+      });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+      const characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+
+      await characteristic.writeValue(Uint8Array.of(0)); // ON
+
+      button.textContent = "Buzzing...";
+      button.disabled = true;
+
+      setTimeout(async () => {
+        await characteristic.writeValue(Uint8Array.of(1)); // OFF
+        button.textContent = "Activate Buzzer";
+        button.disabled = false;
+      }, 60000);
+
+      alert("✅ Buzzer activated for 1 minute.");
+    } catch (err) {
+      alert("❌ Failed to activate buzzer: " + err);
+    }
+  }
+
+  async function fetchPendingOrders() {
+    const res = await fetch('/orders?status=pending');
+    const orders = await res.json();
+    const tbody = document.querySelector("#deviceTable tbody");
+    tbody.innerHTML = "";
+
+    orders.forEach(order => {
+      const item = order.items[0] || {};
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${order.buzzerId || ''}</td>
+        <td>${item.foodName || ''}</td>
+        <td>${item.price || ''}</td>
+        <td>
+          <button class="btn complete" onclick="completeOrder('${order._id}', this)">Complete</button>
+          <button class="btn activate" onclick="activateBuzzer('${order.buzzerId}', this)">Activate Buzzer</button>
+        </td>
+        <td>
+          <button class="btn disconnect" onclick="disconnect('${order.buzzerId}', this)" disabled>Disconnect</button>
+        </td>
+        <td class="status">Not Connected</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  async function fetchCompletedOrders() {
+    const res = await fetch('/completed-orders');
+    const orders = await res.json();
+    const tbody = document.querySelector("#completeTable tbody");
+    tbody.innerHTML = "";
+
+    orders.forEach(order => {
+      const item = order.items[0] || {};
+      const orderedTime = order.createdAt ? new Date(order.createdAt).toLocaleString() : '';
+      const savedTime = order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '';
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${order.buzzerId || ''}</td>
+        <td>${item.foodName || ''}</td>
+        <td>${item.price || ''}</td>
+        <td>${orderedTime}</td>
+        <td>${savedTime}</td>
+        <td>
+          Completed
+          <br>
+          <button class="btn activate" onclick="activateBuzzer('${order.buzzerId}', this)">Activate Buzzer</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  async function completeOrder(orderId, button) {
+    // ...your existing Bluetooth logic...
+    // After successful completion:
+    await fetch('/complete-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId })
+    });
+    // Refresh both tables
+    fetchPendingOrders();
+    fetchCompletedOrders();
+  }
+
+  // On page load:
+  fetchPendingOrders();
+  fetchCompletedOrders();
+</script>
+
+
+</body>
+</html>
